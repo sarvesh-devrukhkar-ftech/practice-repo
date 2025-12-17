@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import json
+import re
 
 
 def fetch_page(url):
@@ -20,42 +21,29 @@ def parse_page(response):
 
 def parse_next_urls(soup):
     if soup is None:
-        return []
+        return [],
 
     next_urls = []
 
     
     links = soup.find_all("a", href=True)
 
+    def get_og(tag_name):
+        tag = soup.find("meta", property=tag_name)
+        return tag.get("content") if tag else "not found"
+    
 
-    title_tag = soup.find('meta', property="og:title")
-    if title_tag:
-        og_title = title_tag.get("content")
-    else:
-        og_title = "not found"
+    og_all_data = {
+        "og_title": get_og("og:title"),
+        "og_description": get_og("og:description"),
+        "image_url": get_og("og:image"),
+        "image_url_alt": get_og("og:image:alt"),
+    }
 
-    description_tag = soup.find('meta', property="og:description")
-    if description_tag:
-        og_description = description_tag.get("content")
-    else:
-        og_description = "not found"
-
-    image_tag = soup.find('meta', property="og:image")
-    if image_tag:
-        og_image = image_tag.get("content")
-    else:
-        og_image = "not found"
-
-    image_alt_tag = soup.find('meta', property="og:image:alt")
-    if image_alt_tag:
-        og_image_alt = image_alt_tag.get("content")
-    else:
-        og_image_alt = "not found"
-
-    print("OG Title:", og_title)
-    print("OG Description:", og_description)
-    print("OG Image URL:", og_image)
-    print("OG Image Alt Text:", og_image_alt)
+    print("OG Title:", og_all_data["og_title"])
+    print("OG Description:", og_all_data["og_description"])
+    print("OG Image URL:", og_all_data["image_url"])
+    print("OG Image Alt Text:", og_all_data["image_url_alt"])
     print("---------------------------------------------------")
 
 
@@ -71,12 +59,17 @@ def parse_next_urls(soup):
         if skip:
             continue
 
-        if href.startswith("/"):
-            href = "https://www.bbc.com" + href
+        if re.search("articles", href):
+            if href.startswith("/"):
+                next_urls.append("https://www.bbc.com" + href)
+            else:
+                next_urls.append(href)
 
-        next_urls.append(href)
+    return next_urls, og_all_data
 
-    return next_urls
+def json_file(filee):
+    with open("crawler.json", "w") as file:
+        json.dump(list(filee), file, indent=4)
 
 frontier = [
     "https://www.bbc.com/news",
@@ -84,7 +77,7 @@ frontier = [
     "https://www.bbc.com/business",
 ]
 visited = {} 
-results =[]
+results = list()
 
 while len(frontier) > 0:
     current_url = frontier.pop(0)
@@ -92,21 +85,13 @@ while len(frontier) > 0:
         continue
     response = fetch_page(current_url)
     soup = parse_page(response)
-    next_urls = parse_next_urls(soup)
+    next_urls, og_all_data  = parse_next_urls(soup)
     url = parse_next_urls
     frontier.extend(next_urls)
     visited[current_url] = ""
     print(f"Visited on : {current_url} | Found: {len(next_urls)} links")
 
 
-    results={
-    "url": next_urls,
-    # "title": og_title,
-    # "description": og_description,
-    # "image": og_image,
-    # "image_alt": og_image_alt
-      }
+    results.append(og_all_data)
 
-
-    with open("crawler_test.json", "w", encoding="utf-8") as file:
-        json.dump(results, file, indent=4, ensure_ascii=False)
+    json_file(results)
