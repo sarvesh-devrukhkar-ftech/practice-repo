@@ -4,8 +4,6 @@ import json
 
 BASE_URL = "https://www.bbc.com"
 
-""" -------- SAVE OG DATA -------- """
-
 
 def save_og_data(results):
     with open("bbc_data.json", "w", encoding="utf-8") as file:
@@ -43,7 +41,7 @@ def parse_page(response):
         "image_alt": get_og("og:image:alt"),
     }
 
-    # Extract next URLs
+
     next_urls = []
     all_links = soup.find_all("a", href=True)
 
